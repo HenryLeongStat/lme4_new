@@ -455,7 +455,22 @@ extern "C" {
         }
         pp->setU0(Vec::Zero(q)); // restore settings from pwrssUpdate;
         rp->updateMu(pp->linPred(1.));
-        return ::Rf_ScalarReal(devc0.sum() + pp->ldL2() - 2 * std::log(mult.prod()));
+
+	// Compute sum of logs to avoid underflow/overflow
+	double sumLogMult = 0.0;
+	for (double val : mult) {
+    		// If val <= 0, you'd need special handling, 
+    		// e.g. skip or throw error, because std::log(0.0) is -∞, log of negative is NaN
+    		sumLogMult += std::log(val);
+	}
+
+	// Then compute the final expression in log-domain
+	double val = devc0.sum() + pp->ldL2() - 2.0 * sumLogMult;
+
+	// Wrap up as an R scalar (assuming this is Rcpp or a similar interface):
+	return ::Rf_ScalarReal(val);
+
+        // return ::Rf_ScalarReal(devc0.sum() + pp->ldL2() - 2 * std::log(mult.prod()));
         END_RCPP;
     }
 
